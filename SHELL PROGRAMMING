@@ -1,0 +1,176 @@
+1.FACTORIAL
+
+echo "Enter number"
+read num
+fact=1
+i=1
+while [ $i -le $num ]; do
+        fact=`expr $fact \* $i`
+        i=`expr $i + 1`
+done
+echo $fact
+
+OUTPUT:
+Enter number
+5
+120
+
+
+
+2.PRIME OR NOT
+
+echo "Enter a number"
+read num
+
+isPrime=1
+
+if [ $num -lt 2 ]; then
+	isPrime = 0
+else
+	for(( i=2; i<=$((num / 2)); i++ )); do
+		if [ $((num % i)) -eq 0 ]; then
+			isPrime=0
+			break
+		fi
+	done
+fi
+
+if [ $isPrime -eq 1 ]; then
+	echo "$num is a prime number"
+else
+	echo "$num is not a prime number"
+
+fi
+
+OUTPUT:
+Enter a number
+23
+23 is a prime number
+
+
+3.ARMSTRONG NUMBER OR NOT
+  
+echo "Enter a number:"
+read num
+
+original_num=$num
+num_digits=${#num}
+sum=0
+
+while [ $num -gt 0 ]; do
+    digit=$((num % 10))
+    sum=$((sum + digit ** num_digits))
+    num=$((num / 10))
+done
+
+if [ $sum -eq $original_num ]; then
+    echo "$original_num is an Armstrong number."
+else
+    echo "$original_num is not an Armstrong number."
+fi
+
+OUTPUT:
+Enter a number:
+153
+153 is an Armstrong number.
+
+
+
+
+4.STRING IS PALINDROME OR NOT
+echo "Enter String"
+read str
+
+reversedStr=$(echo $str | rev )
+
+if [ "$str" == "$reversedStr" ]; then
+	echo "$str is Palindrome"
+else
+	echo "$str is not Palindrome"
+fi
+
+OUTPUT:
+Enter String
+malayalam    
+malayalam is Palindrome
+
+
+
+5.CALCULATOR
+add() {
+    result=$(($1 + $2))
+    echo "Result: $result"
+}
+
+subtract() {
+    result=$(($1 - $2))
+    echo "Result: $result"
+}
+
+multiply() {
+    result=$(($1 * $2))
+    echo "Result: $result"
+}
+
+divide() {
+    if [ $2 -eq 0 ]; then
+        echo "Error: Division by zero is not allowed!"
+    else
+        result=$(($1 / $2))
+        echo "Result: $result"
+    fi
+}
+
+echo "Enter first number: " 
+read num1
+echo "Enter second number: "
+read   num2
+
+echo "Select an operation:"
+echo "1. Add"
+echo "2. Subtract"
+echo "3. Multiply"
+echo "4. Divide"
+echo "Enter choice : " 
+read  choice
+
+case $choice in
+    1) add $num1 $num2 ;;
+    2) subtract $num1 $num2 ;;
+    3) multiply $num1 $num2 ;;
+    4) divide $num1 $num2 ;;
+    *) echo "Invalid choice," ;;
+esac
+
+OUTPUT:
+Enter first number: 
+3
+Enter second number: 
+2
+Select an operation:
+1. Add
+2. Subtract
+3. Multiply
+4. Divide
+Enter choice : 
+1
+Result: 5
+
+
+
+6.FILE EXISTS OR NOT
+
+echo "Enter the file name or path: " 
+read  filename
+
+if [ -e "$filename" ]; then
+    echo "The file $filename exists."
+else
+    echo "The file $filename does not exist."
+fi
+
+OUTPUT:
+Enter the file name or path: 
+calculator.sh
+The file calculator.sh exists.
+
