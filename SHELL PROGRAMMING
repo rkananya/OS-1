@@ -19,28 +19,35 @@ Enter number
 
 2.PRIME OR NOT
 
+#!/bin/bash
+
 echo "Enter a number"
 read num
+
+if [ $num -le 1 ]; then
+	echo "$num is neither prime or composite"
+	exit 0
+fi
 
 isPrime=1
 
 if [ $num -lt 2 ]; then
-	isPrime = 0
+    isPrime=0
 else
-	for(( i=2; i<=$((num / 2)); i++ )); do
-		if [ $((num % i)) -eq 0 ]; then
-			isPrime=0
-			break
-		fi
-	done
+    for (( i=2; i<=$((num / 2)); i++ )); do
+        if [ $((num % i)) -eq 0 ]; then
+            isPrime=0
+            break
+        fi
+    done
 fi
 
 if [ $isPrime -eq 1 ]; then
-	echo "$num is a prime number"
+    echo "$num is a prime number"
 else
-	echo "$num is not a prime number"
-
+    echo "$num is not a prime number"
 fi
+
 
 OUTPUT:
 Enter a number
