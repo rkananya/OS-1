@@ -1,0 +1,277 @@
+EX 1:
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#define FIFO1 "fifo1"
+#define FIFO2 "fifo2"
+#define MAX_BUFFER_SIZE 1024
+
+int main() {
+    char sentence[MAX_BUFFER_SIZE], result[MAX_BUFFER_SIZE];
+    int char_count = 0, word_count = 0, line_count = 1;
+    int fifo1, fifo2;
+    pid_t pid;
+
+    mkfifo(FIFO1, 0666);
+    mkfifo(FIFO2, 0666);
+
+    pid = fork();
+
+    if (pid > 0) {
+        printf("Enter a sentence: ");
+        fgets(sentence, MAX_BUFFER_SIZE, stdin);
+
+        fifo1 = open(FIFO1, O_WRONLY);
+        write(fifo1, sentence, strlen(sentence) + 1);
+        close(fifo1);
+
+        fifo2 = open(FIFO2, O_RDONLY);
+        read(fifo2, result, MAX_BUFFER_SIZE);
+        close(fifo2);
+
+        printf("Statistics: %s\n", result);
+    }
+    else if (pid == 0) {
+        fifo1 = open(FIFO1, O_RDONLY);
+        read(fifo1, sentence, MAX_BUFFER_SIZE);
+        close(fifo1);
+
+        char_count = -1;
+        word_count = -1;
+        line_count = 0;
+
+        for (int i = 0; sentence[i] != '\0'; i++) {
+            char_count++;
+            if (sentence[i] == ' ' || sentence[i] == '\n') word_count++;
+            if (sentence[i] == '\n') line_count++;
+        }
+
+        word_count++;
+
+        snprintf(result, MAX_BUFFER_SIZE, "Chars: %d, Words: %d, Lines: %d", char_count, word_count, line_count);
+
+        fifo2 = open(FIFO2, O_WRONLY);
+        write(fifo2, result, strlen(result) + 1);
+        close(fifo2);
+
+        exit(0);
+    }
+    else {
+        perror("Fork failed");
+        exit(1);
+    }
+
+    return 0;
+}
+
+
+
+
+
+EX 2:
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#define FIFO1 "fifo1"
+#define FIFO2 "fifo2"
+#define MAX_BUFFER_SIZE 1024
+
+int main() {
+    char sentence[MAX_BUFFER_SIZE], result[MAX_BUFFER_SIZE];
+    int char_count = 0, word_count = 0, line_count = 1;
+    int fifo1, fifo2;
+    pid_t pid;
+
+    mkfifo(FIFO1, 0666);
+    mkfifo(FIFO2, 0666);
+
+    pid = fork();
+
+    if (pid > 0) {
+        printf("Enter a sentence: ");
+        fgets(sentence, MAX_BUFFER_SIZE, stdin);
+
+        fifo1 = open(FIFO1, O_WRONLY);
+        write(fifo1, sentence, strlen(sentence) + 1);
+        close(fifo1);
+
+        fifo2 = open(FIFO2, O_RDONLY);
+        read(fifo2, result, MAX_BUFFER_SIZE);
+        close(fifo2);
+
+        printf("Statistics: %s\n", result);
+    }
+    else if (pid == 0) {
+        fifo1 = open(FIFO1, O_RDONLY);
+        read(fifo1, sentence, MAX_BUFFER_SIZE);
+        close(fifo1);
+
+        char_count = -1;
+        word_count = -1;
+        line_count = 0;
+
+        for (int i = 0; sentence[i] != '\0'; i++) {
+            char_count++;
+            if (sentence[i] == ' ' || sentence[i] == '\n') word_count++;
+            if (sentence[i] == '\n') line_count++;
+        }
+
+        word_count++;
+
+        snprintf(result, MAX_BUFFER_SIZE, "Chars: %d, Words: %d, Lines: %d", char_count, word_count, line_count);
+
+        fifo2 = open(FIFO2, O_WRONLY);
+        write(fifo2, result, strlen(result) + 1);
+        close(fifo2);
+
+        exit(0);
+    }
+    else {
+        perror("Fork failed");
+        exit(1);
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+EX 3:
+producer.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <semaphore.h>
+
+#define SHM_NAME "/shm_example"  // Shared memory name
+#define SEM_PRODUCER "/sem_producer"  // Semaphore for producer
+#define SEM_CONSUMER "/sem_consumer"  // Semaphore for consumer
+
+int main() {
+    // Shared memory variables
+    int *shared_memory;
+    int shm_fd;
+
+    // Initialize semaphores
+    sem_t *sem_producer = sem_open(SEM_PRODUCER, O_CREAT, 0666, 1); // Semaphore for producer (start with 1)
+    sem_t *sem_consumer = sem_open(SEM_CONSUMER, O_CREAT, 0666, 0); // Semaphore for consumer (start with 0)
+
+    if (sem_producer == SEM_FAILED || sem_consumer == SEM_FAILED) {
+        perror("Semaphore creation failed");
+        exit(1);
+    }
+
+    // Create shared memory
+    shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("Failed to open shared memory");
+        exit(1);
+    }
+
+    // Set the size of the shared memory
+    ftruncate(shm_fd, sizeof(int) * 10); // Size for storing 10 integers
+
+    // Map the shared memory to the process address space
+    shared_memory = mmap(NULL, sizeof(int) * 10, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shared_memory == MAP_FAILED) {
+        perror("Memory mapping failed");
+        exit(1);
+    }
+
+    // Produce a sequence of numbers and store them in shared memory
+    for (int i = 0; i < 10; i++) {
+        sem_wait(sem_producer);  // Wait for producer's turn
+        shared_memory[i] = i + 1;  // Store number in shared memory
+        printf("Produced: %d\n", shared_memory[i]);
+        sem_post(sem_consumer);  // Signal consumer
+        sleep(1);  // Simulate work
+    }
+
+    // Cleanup
+    sem_close(sem_producer);
+    sem_close(sem_consumer);
+    munmap(shared_memory, sizeof(int) * 10);
+    shm_unlink(SHM_NAME);
+
+    return 0;
+}
+
+consumer.c
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <semaphore.h>
+
+#define SHM_NAME "/shm_example"  // Shared memory name
+#define SEM_PRODUCER "/sem_producer"  // Semaphore for producer
+#define SEM_CONSUMER "/sem_consumer"  // Semaphore for consumer
+
+int main() {
+    // Shared memory variables
+    int *shared_memory;
+    int shm_fd;
+
+    // Initialize semaphores
+    sem_t *sem_producer = sem_open(SEM_PRODUCER, 0); // Semaphore for producer
+    sem_t *sem_consumer = sem_open(SEM_CONSUMER, 0); // Semaphore for consumer
+
+    if (sem_producer == SEM_FAILED || sem_consumer == SEM_FAILED) {
+        perror("Semaphore open failed");
+        exit(1);
+    }
+
+    // Open shared memory
+    shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("Failed to open shared memory");
+        exit(1);
+    }
+
+    // Map the shared memory to the process address space
+    shared_memory = mmap(NULL, sizeof(int) * 10, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shared_memory == MAP_FAILED) {
+        perror("Memory mapping failed");
+        exit(1);
+    }
+
+    int sum = 0;
+
+    // Consume the numbers and compute the sum
+    for (int i = 0; i < 10; i++) {
+        sem_wait(sem_consumer);  // Wait for producer to produce
+        sum += shared_memory[i]; // Add number to sum
+        printf("Consumed: %d\n", shared_memory[i]);
+        sem_post(sem_producer);  // Signal producer
+        sleep(1);  // Simulate work
+    }
+
+    printf("Total sum: %d\n", sum);
+
+    // Cleanup
+    sem_close(sem_producer);
+    sem_close(sem_consumer);
+    munmap(shared_memory, sizeof(int) * 10);
+    shm_unlink(SHM_NAME);
+
+    return 0;
+}
+
+
+
+
