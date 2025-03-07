@@ -1,0 +1,469 @@
+1.FCFS
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+#define NUM_PROCESSES 5
+
+struct Process {
+    int arrival;
+    int burst;
+    int start;
+    int end;
+    int waiting;
+    int turnaround;
+    char name;  // Process name (A, B, C, D, E)
+};
+
+void sort_by_arrival(std::vector<Process>& processes) {
+    std::sort(processes.begin(), processes.end(), [](const Process& a, const Process& b) {
+        return a.arrival < b.arrival;
+    });
+}
+
+int main() {
+    std::vector<Process> processes = {
+        {0, 15, 0, 0, 0, 0, 'A'},
+        {2, 10, 0, 0, 0, 0, 'B'},
+        {5, 3, 0, 0, 0, 0, 'C'},
+        {6, 6, 0, 0, 0, 0, 'D'},
+        {7, 5, 0, 0, 0, 0, 'E'}
+    };
+
+    // Sorting processes by arrival time
+    sort_by_arrival(processes);
+
+    // Calculate the start, end, turnaround, and waiting times
+    int current_time = 0;
+    std::vector<Process> original_order = processes;  // To store the original order of processes
+
+    for (auto& process : processes) {
+        process.start = std::max(process.arrival, current_time);
+        process.end = process.start + process.burst;
+        process.turnaround = process.end - process.arrival;
+        process.waiting = process.turnaround - process.burst;
+        current_time = process.end;
+    }
+
+    // Calculate averages
+    float avg_waiting = 0, avg_turnaround = 0;
+    std::cout << "Process\tArrival Time\tBurst Time\tStart Time\tCompletion Time\tTurnaround Time\tWaiting Time\n";
+    
+    // Output table in original order
+    for (const auto& original_process : original_order) {
+        for (auto& process : processes) {
+            if (original_process.name == process.name) {
+                avg_waiting += process.waiting;
+                avg_turnaround += process.turnaround;
+                std::cout << process.name << "\t" << process.arrival << "\t\t" << process.burst << "\t\t" 
+                          << process.start << "\t\t" << process.end << "\t\t" << process.turnaround << "\t\t" 
+                          << process.waiting << "\n";
+            }
+        }
+    }
+
+    std::cout << "\nAvg Waiting Time: " << avg_waiting / NUM_PROCESSES << "\n";
+    std::cout << "Avg Turnaround Time: " << avg_turnaround / NUM_PROCESSES << "\n";
+
+    // Gantt Chart stored in an array
+    std::cout << "\nGantt Chart:\n";
+    std::vector<int> gantt_chart(NUM_PROCESSES);
+    for (int i = 0; i < NUM_PROCESSES; i++) {
+        gantt_chart[i] = processes[i].end;  // Store completion times in the gantt chart array
+        std::cout << "| " << processes[i].name << " ";
+    }
+    std::cout << "|\n";
+
+    for (int i = 0; i < NUM_PROCESSES; i++) {
+        std::cout << gantt_chart[i] << " ";  // Print the times corresponding to the gantt chart
+    }
+    std::cout << "\n";
+
+    return 0;
+}
+
+
+2.SJFS
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <iomanip> // For formatting output
+
+#define NUM_CUSTOMERS 5
+
+using namespace std;
+
+struct Customer {
+    char name;
+    int arrival;
+    int burst;
+    int remaining_burst;
+    int start;
+    int end;
+    int waiting;
+    int turnaround;
+    bool preempted;
+};
+
+void sort_by_arrival(vector<Customer>& customers) {
+    sort(customers.begin(), customers.end(), [](const Customer& a, const Customer& b) {
+        return a.arrival < b.arrival;
+    });
+}
+
+void print_gantt_chart(const vector<char>& process_names, const vector<int>& end_times) {
+    // Print Gantt Chart
+    cout << "\nGantt Chart:\n";
+    // Display the process names in order
+    for (const auto& p : process_names) {
+        cout << "| " << p << " ";
+    }
+    cout << "|" << endl;
+
+    // Display the timeline
+    cout << "0 ";
+    for (const auto& end : end_times) {
+        cout << setw(3) << end << " ";
+    }
+    cout << endl;
+}
+
+void preemptive_SJF(vector<Customer>& customers) {
+    int current_time = 0;
+    int completed = 0;
+    vector<int> remaining_burst(customers.size());
+    vector<char> process_names;  // Array to store process names in execution order
+    vector<int> end_times;       // Array to store end times for each process
+
+    // Initialize remaining burst times
+    for (int i = 0; i < customers.size(); i++) {
+        remaining_burst[i] = customers[i].burst;
+    }
+
+    while (completed < customers.size()) {
+        int min_burst = 9999;
+        int shortest = -1;
+
+        // Find the process with the shortest remaining burst time that has arrived
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers[i].arrival <= current_time && remaining_burst[i] < min_burst && remaining_burst[i] > 0) {
+                min_burst = remaining_burst[i];
+                shortest = i;
+            }
+        }
+
+        if (shortest != -1) {
+            if (customers[shortest].start == 0) {
+                customers[shortest].start = current_time;  // Mark the start time for the process
+            }
+
+            // Track process name and end time
+            process_names.push_back(customers[shortest].name);
+            end_times.push_back(current_time + 1);  // Display the end time for this time slice
+            current_time++;
+
+            remaining_burst[shortest]--;
+
+            // If the process is done, record the end time and calculate turnaround & waiting times
+            if (remaining_burst[shortest] == 0) {
+                customers[shortest].end = current_time;
+                customers[shortest].turnaround = customers[shortest].end - customers[shortest].arrival;
+                customers[shortest].waiting = customers[shortest].turnaround - customers[shortest].burst;
+                completed++;
+            } else {
+                // If the process is not finished, mark it as preempted and track the preemption point
+                customers[shortest].preempted = true;
+            }
+        } else {
+            current_time++;  // No process is ready to execute, so increment time
+        }
+    }
+
+    print_gantt_chart(process_names, end_times);
+}
+
+void non_preemptive_SJF(vector<Customer>& customers) {
+    int current_time = 0;
+    int completed = 0;
+    vector<char> process_names;  // Array to store process names in execution order
+    vector<int> end_times;       // Array to store end times for each process
+
+    while (completed < customers.size()) {
+        int min_burst = 9999;
+        int shortest = -1;
+
+        // Find the process with the shortest burst time that has arrived
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers[i].arrival <= current_time && customers[i].end == 0 && customers[i].burst < min_burst) {
+                min_burst = customers[i].burst;
+                shortest = i;
+            }
+        }
+
+        if (shortest != -1) {
+            customers[shortest].start = current_time; // Mark the start time for the process
+            process_names.push_back(customers[shortest].name);
+            end_times.push_back(current_time + customers[shortest].burst); // Track end time
+            current_time = customers[shortest].start + customers[shortest].burst;
+
+            customers[shortest].end = current_time;
+            customers[shortest].turnaround = customers[shortest].end - customers[shortest].arrival;
+            customers[shortest].waiting = customers[shortest].turnaround - customers[shortest].burst;
+            completed++;
+        } else {
+            current_time++;  // No process is ready to execute, so increment time
+        }
+    }
+
+    print_gantt_chart(process_names, end_times);
+}
+
+void print_results(const vector<Customer>& customers) {
+    cout << "\nCustomer\tArrival Time\tBurst Time\tStart Time\tEnd Time\tTurnaround Time\tWaiting Time" << endl;
+    for (const auto& customer : customers) {
+        cout << customer.name << "\t\t" << customer.arrival << "\t\t" << customer.burst
+             << "\t\t" << customer.start << "\t\t" << customer.end << "\t\t"
+             << customer.turnaround << "\t\t" << customer.waiting << endl;
+    }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   1,4           Top
+}
+
+int main() {
+    vector<Customer> customers = {
+        {'A', 0, 10, 10, 0, 0, 0, 0, false},
+        {'B', 1, 7, 7, 0, 0, 0, 0, false},
+        {'C', 2, 2, 2, 0, 0, 0, 0, false},
+        {'D', 4, 5, 5, 0, 0, 0, 0, false},
+        {'E', 6, 20, 20, 0, 0, 0, 0, false}
+    };
+
+    sort_by_arrival(customers);
+
+    // Non-Preemptive SJF Scheduling
+    vector<Customer> non_preemptive = customers;
+    cout << "Non-Preemptive SJF Scheduling:" << endl;
+    non_preemptive_SJF(non_preemptive);
+
+    print_results(non_preemptive);
+
+    float avg_waiting = 0, avg_turnaround = 0;
+    for (const auto& customer : non_preemptive) {
+        avg_waiting += customer.waiting;
+        avg_turnaround += customer.turnaround;
+    }
+    cout << "\nAvg Waiting Time: " << avg_waiting / NUM_CUSTOMERS
+         << "\nAvg Turnaround Time: " << avg_turnaround / NUM_CUSTOMERS << endl;
+
+    // Preemptive SJF Scheduling
+    vector<Customer> preemptive = customers;
+    cout << "\nPreemptive SJF Scheduling:" << endl;
+    preemptive_SJF(preemptive);
+
+    print_results(preemptive);
+
+    avg_waiting = 0, avg_turnaround = 0;
+    for (const auto& customer : preemptive) {
+        avg_waiting += customer.waiting;
+        avg_turnaround += customer.turnaround;
+    }
+    cout << "\nAvg Waiting Time: " << avg_waiting / NUM_CUSTOMERS
+         << "\nAvg Turnaround Time: " << avg_turnaround / NUM_CUSTOMERS << endl;
+
+    return 0;
+}
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   187,0-1       Bot
+
+3.PRIORITY
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <iomanip> // For formatting output
+
+#define NUM_CUSTOMERS 5
+
+using namespace std;
+
+struct Customer {
+    char name;
+    int arrival;
+    int burst;
+    int priority;
+    int start;
+    int end;
+    int waiting;
+    int turnaround;
+    bool preempted;
+};
+
+// Sort customers based on arrival time
+void sort_by_arrival(vector<Customer>& customers) {
+    sort(customers.begin(), customers.end(), [](const Customer& a, const Customer& b) {
+        return a.arrival < b.arrival;
+    });
+}
+
+// Print the Gantt chart
+void print_gantt_chart(const vector<char>& process_names, const vector<int>& end_times) {
+    cout << "\nGantt Chart:\n";
+    // Display process names in execution order
+    for (const auto& p : process_names) {
+        cout << "| " << p << " ";
+    }
+    cout << "|" << endl;
+
+    // Display the timeline
+    cout << "0 ";
+    for (const auto& end : end_times) {
+        cout << setw(3) << end << " ";
+    }
+    cout << endl;
+}
+
+// Preemptive Priority Scheduling
+void preemptive_priority(vector<Customer>& customers) {
+    int current_time = 0;
+    int completed = 0;
+    vector<int> remaining_burst(customers.size());
+    vector<char> process_names;  // Store process names in execution order
+    vector<int> end_times;       // Store end times for each process
+
+    // Initialize remaining burst times
+    for (int i = 0; i < customers.size(); i++) {
+        remaining_burst[i] = customers[i].burst;
+    }
+
+    while (completed < customers.size()) {
+        int highest_priority = -1;
+        int selected = -1;
+
+        // Find the process with highest priority (lowest priority number)
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers[i].arrival <= current_time && remaining_burst[i] > 0) {
+                if (highest_priority == -1 || customers[i].priority < customers[highest_priority].priority) {
+                    highest_priority = i;
+                    selected = i;
+                }
+            }
+        }
+
+        if (selected != -1) {
+            if (customers[selected].start == 0) {
+                customers[selected].start = current_time;  // Mark start time
+            }
+
+            process_names.push_back(customers[selected].name);
+            end_times.push_back(current_time + 1); // Display the end time for this time slice
+            current_time++;
+
+            remaining_burst[selected]--;
+
+            if (remaining_burst[selected] == 0) {
+                customers[selected].end = current_time;
+                customers[selected].turnaround = customers[selected].end - customers[selected].arrival;
+                customers[selected].waiting = customers[selected].turnaround - customers[selected].burst;
+                completed++;
+            } else {
+                customers[selected].preempted = true;
+            }
+        } else {
+            current_time++;  // No process is ready to execute, so increment time
+        }
+    }
+
+    print_gantt_chart(process_names, end_times);
+}
+
+// Non-Preemptive Priority Scheduling
+void non_preemptive_priority(vector<Customer>& customers) {
+    int current_time = 0;
+    int completed = 0;
+    vector<char> process_names;  // Store process names in execution order
+    vector<int> end_times;       // Store end times for each process
+
+    while (completed < customers.size()) {
+        int highest_priority = -1;
+        int selected = -1;
+
+        // Find the process with highest priority (lowest priority number)
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers[i].arrival <= current_time && customers[i].end == 0) {
+                if (highest_priority == -1 || customers[i].priority < customers[highest_priority].priority) {
+                    highest_priority = i;
+                    selected = i;
+                }
+            }
+        }
+
+        if (selected != -1) {
+            customers[selected].start = current_time;  // Mark start time
+            process_names.push_back(customers[selected].name);
+            end_times.push_back(current_time + customers[selected].burst);  // Track end time
+            current_time = customers[selected].start + customers[selected].burst;
+
+            customers[selected].end = current_time;
+            customers[selected].turnaround = customers[selected].end - customers[selected].arrival;
+            customers[selected].waiting = customers[selected].turnaround - customers[selected].burst;
+            completed++;
+        } else {
+            current_time++;  // No process is ready to execute, so increment time
+        }
+    }
+
+    print_gantt_chart(process_names, end_times);
+}
+
+// Print the results for all customers
+void print_results(const vector<Customer>& customers) {
+    cout << "\nCustomer\tArrival Time\tBurst Time\tPriority\tStart Time\tEnd Time\tTurnaround Time\tWaiting Time" << endl;
+    for (const auto& customer : customers) {
+        cout << customer.name << "\t\t" << customer.arrival << "\t\t" << customer.burst
+             << "\t\t" << customer.priority << "\t\t" << customer.start << "\t\t" << customer.end
+             << "\t\t" << customer.turnaround << "\t\t" << customer.waiting << endl;
+    }
+}
+
+int main() {
+    vector<Customer> customers = {
+        {'A', 1, 15, 5, 0, 0, 0, 0, false},
+        {'B', 3, 5, 3, 0, 0, 0, 0, false},
+        {'C', 4, 12, 1, 0, 0, 0, 0, false},
+        {'D', 6, 25, 2, 0, 0, 0, 0, false},
+        {'E', 7, 2, 4, 0, 0, 0, 0, false}
+    };
+
+    sort_by_arrival(customers);
+
+    // Non-Preemptive Priority Scheduling
+    vector<Customer> non_preemptive = customers;
+    cout << "Non-Preemptive Priority Scheduling:" << endl;
+    non_preemptive_priority(non_preemptive);
+
+    print_results(non_preemptive);
+
+    float avg_waiting = 0, avg_turnaround = 0;
+    for (const auto& customer : non_preemptive) {
+        avg_waiting += customer.waiting;
+        avg_turnaround += customer.turnaround;
+    }
+    cout << "\nAvg Waiting Time: " << avg_waiting / NUM_CUSTOMERS 
+         << "\nAvg Turnaround Time: " << avg_turnaround / NUM_CUSTOMERS << endl;
+
+    // Preemptive Priority Scheduling
+    vector<Customer> preemptive = customers;
+    cout << "\nPreemptive Priority Scheduling:" << endl;
+    preemptive_priority(preemptive);
+
+    print_results(preemptive);
+
+    avg_waiting = 0, avg_turnaround = 0;
+    for (const auto& customer : preemptive) {
+        avg_waiting += customer.waiting;
+        avg_turnaround += customer.turnaround;
+    }
+    cout << "\nAvg Waiting Time: " << avg_waiting / NUM_CUSTOMERS 
+         << "\nAvg Turnaround Time: " << avg_turnaround / NUM_CUSTOMERS << endl;
+
+    return 0;
+}
+
